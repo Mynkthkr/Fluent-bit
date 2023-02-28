@@ -1,0 +1,251 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: {{ $.Release.Namespace  }}
+  labels:
+    k8s-app: fluent-bit
+data:
+  # Configuration files: server, input, filters and output
+  # ======================================================
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Log_Level     info
+        Daemon        off
+        Parsers_File  parsers.conf
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+
+    @INCLUDE input-kubernetes.conf
+    #@INCLUDE filter-kubernetes.conf
+    @INCLUDE output-elasticsearch.conf
+
+  input-kubernetes.conf: |
+    [INPUT]
+        Name tail
+        Tag     nw-social-user-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-user-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-scheduler-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-scheduler-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-reader-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-reader-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-post-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-post-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-notification-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-notification-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-migration-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/nw-social-migration-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+    [INPUT]
+        Name tail
+        Tag     nw-social-client-{{ .Values.env.name }}
+        Parser  json
+        Path    /var/log/containers/*nw-social-client-{{ .Values.env.name }}*.log
+        DB  /var/log/flb_kube.db
+        Refresh_Interval 5
+        Mem_Buf_Limit 100MB
+        Buffer_Chunk_Size 128k
+        Buffer_Max_Size 4096k
+        Skip_Long_Lines On
+
+  filter-kubernetes.conf: |
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Kube_URL            https://kubernetes.default.svc.cluster.local:443
+        Merge_Log           Off
+        K8S-Logging.Parser  On
+
+  output-elasticsearch.conf: |
+    [OUTPUT]
+        Name es
+        Match nw-social-user-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-user-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-user-{{ .Values.env.name }}
+        Type nw-social-user-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-scheduler-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-scheduler-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-scheduler-{{ .Values.env.name }}
+        Type nw-social-scheduler-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-reader-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-reader-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-reader-{{ .Values.env.name }}
+        Type nw-social-reader-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-post-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-post-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-post-{{ .Values.env.name }}
+        Type nw-social-post-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-notification-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-notification-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-notification-{{ .Values.env.name }}
+        Type nw-social-notification-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-migration-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-migration-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-migration-{{ .Values.env.name }}
+        Type nw-social-migration-{{ .Values.env.name }}
+        Retry_Limit 1
+
+    [OUTPUT]
+        Name es
+        Match nw-social-client-{{ .Values.env.name }}
+        Host {{ .Values.config.output.ELASTICSEARCH_IP}} 
+        Port 9200
+        Index nw-social-client-{{ .Values.env.name }}
+        Logstash_Format true
+        Logstash_Prefix nw-social-client-{{ .Values.env.name }}
+        Type nw-social-client-{{ .Values.env.name }}
+        Retry_Limit 1
+
+  parsers.conf: |
+    [PARSER]
+        Name   apache
+        Format regex
+        Regex  ^(?<host>[^ ]*) [^ ]* (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   apache2
+        Format regex
+        Regex  ^(?<host>[^ ]*) [^ ]* (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^ ]*) +\S*)?" (?<code>[^ ]*) (?<size>[^]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   apache_error
+        Format regex
+        Regex  ^\[[^ ]* (?<time>[^\]]*)\] \[(?<level>[^\]]*)\](?: \[pid (?<pid>[^\]]*)\])?( \[client (?<client>[^\]]*)\])? (?<message>.*)$
+
+    [PARSER]
+        Name   kong
+        Format regex
+        Regex ^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +\/(?<api>[a-z-0-9-_]*)\/?(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)") (?<response>[^ ]*) (?<pipe>[^ ]*)? .
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   nginx
+        Format regex
+        Regex ^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +\/(?<api>[a-z-]*)\/(?<path>[^\"]*?)(?:+\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   json
+        Format json
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+        # Command      |  Decoder | Field | Optional Action
+        # =============|==================|=================
+        Decode_Field_As   escaped    log
+
+    [PARSER]
+        Name        syslog
+        Format      regex
+        Regex       ^\<(?<pri>[0-9]+)\>(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$
+        Time_Key    time
+        Time_Format %b %d %H:%M:%S
