@@ -1,0 +1,65 @@
+#!/bin/bash
+echo $SHELL
+#Role
+role_arn="arn:aws:iam::743930152640:role/aws-infra-us-east-1-nw-social-infra-deploy-access-role"
+role_session_name='eks-role'
+temp_role=$(aws sts assume-role \
+--role-arn $role_arn \
+--role-session-name $role_session_name)
+export AWS_ACCESS_KEY_ID=$(echo $temp_role | jq -r .Credentials.AccessKeyId)
+export AWS_SECRET_ACCESS_KEY=$(echo $temp_role | jq -r .Credentials.SecretAccessKey)
+export AWS_SESSION_TOKEN=$(echo $temp_role | jq -r .Credentials.SessionToken)
+aws sts get-caller-identity
+aws eks update-kubeconfig --region us-east-1 --name nw-social-${ENV}
+
+
+
+if [ "${servicename}" != "null" ]; then 
+cat fluentbit-helm-chart/templates/config.yaml  | yq e '.data."input-kubernetes.conf"'  > fluentbit-helm-chart/templates/input.yaml
+cat << EOF >> fluentbit-helm-chart/templates/input.yaml
+[INPUT]
+    Name                 tail
+    Tag                  ${servicename}-{{ .Values.env.name }}
+    Parser               json
+    Path                 /var/log/containers/${servicename}-{{ .Values.env.name }}*.log
+    DB                   /var/log/flb_kube.db
+    Refresh_Interval     5
+    Mem_Buf_Limit        100MB
+    Buffer_Chunk_Size    128k
+    Buffer_Max_Size      4096k
+    Skip_Long_Lines      On
+
+EOF
+yq -i  eval '.data."input-kubernetes.conf" = "'"$(< fluentbit-helm-chart/templates/input.yaml)"'"' fluentbit-helm-chart/templates/config.yaml
+rm -rf fluentbit-helm-chart/templates/input.yaml
+cat fluentbit-helm-chart/templates/config.yaml   | yq e '.data."output-elasticsearch.conf"'  > fluentbit-helm-chart/templates/output.yaml
+cat << EOF >> fluentbit-helm-chart/templates/output.yaml
+[OUTPUT]
+    Name                 es
+    Match                ${servicename}-{{ .Values.env.name }}
+    Host                 {{ .Values.config.output.ELASTICSEARCH_IP}} 
+    Port                 9200
+    Index                ${servicename}-{{ .Values.env.name }}
+    Logstash_Format      true
+    Logstash_Prefix      ${servicename}-{{ .Values.env.name }}
+    Type                 ${servicename}-{{ .Values.env.name }}
+    HTTP_User            {{ .Values.outputu.user }}
+    HTTP_Passwd          {{ .Values.output.passwd }}
+    Retry_Limit          1
+
+EOF
+yq -i  eval '.data."output-elasticsearch.conf" = "'"$(< fluentbit-helm-chart/templates/output.yaml)"'"' fluentbit-helm-chart/templates/config.yaml
+rm -rf fluentbit-helm-chart/templates/output.yaml
+##Git
+git checkout ${Branch}
+git add .
+git commit -m "Update config file"
+git push origin ${Branch}
+    else
+    echo "no service added"
+     
+    fi
+
+helm upgrade --install fluent-bit fluentbit-helm-chart --set env.name=${ENV} -n ${ENV}
+#rm -r /var/lib/jenkins/.kube/config
+
